@@ -16,17 +16,21 @@ static void DrawGame(void);
 static void UpdateGame(void);
 static void CheckGameStatus(void);
 static void SetDefaults(void);
+static void IncreaseDifficulty(void);
 
 const Vector2 ballDefault = {625, 370};
 Vector2 ball = ballDefault;
-float horizontalSpeed = 10;
+float horizontalSpeed = 15;
 float verticalSpeed;
+float verticalOffset;
 
 static float paddleSpeed = 15;
 static float paddleLength = 80;
 static float paddleThickness = 20;
 
 int volleyCounter = 0;
+int difficultyInterval = 300;
+int frameCounter = 0;
 int scoreToWin = 10;
 bool startScreen = true;
 bool gameIsRunning = false;
@@ -83,10 +87,12 @@ void RandomizeDirection(void) {
 }
 
 void RandomizeYSpeed(void) {
+    verticalOffset += 2;
     std::srand(std::time(0));
-    int randomInt = std::rand() % 50 + 1;
+    int randomInt = std::rand() % 50 + verticalOffset;
     float randomFloat = randomInt / 10.0F;
     verticalSpeed = randomFloat;
+
 }
 
 void DrawGame(void) {
@@ -100,8 +106,11 @@ void DrawGame(void) {
         } else {
             const char* pointsP1Char = std::to_string(pointsP1).c_str();
             const char* pointsP2Char = std::to_string(pointsP2).c_str();
+            const char* volleyCounterChar = std::to_string(volleyCounter).c_str();
             DrawText(pointsP1Char, 50, 10, 50, LIGHTGRAY);
-            DrawText(pointsP2Char, 1220, 10, 50, LIGHTGRAY);
+            DrawText(pointsP2Char, 1200, 10, 50, LIGHTGRAY);
+            DrawText(volleyCounterChar, 680, 650, 30, LIGHTGRAY);
+            DrawText("Volley: ", 550, 653, 20, LIGHTGRAY);
         }
         
         DrawRectangleRec(playerOne, BLACK);
@@ -119,10 +128,19 @@ void CheckGameStatus(void) {
     }
 }
 
+void IncreaseDifficulty(void) {
+    frameCounter++;
+    if (frameCounter >= difficultyInterval) {
+        horizontalSpeed++;
+        frameCounter = 0;
+    }
+}
+
 void SetDefaults() {
     ball = ballDefault;
-    horizontalSpeed = 10;
+    horizontalSpeed = 15;
     verticalSpeed = 0.5F;
+    verticalOffset = 0;
 
     volleyCounter = 0;
     startScreen = true;
@@ -135,12 +153,12 @@ void SetDefaults() {
     pointsP2 = 0;
 }
 
-
 void UpdateGame() {
     CheckGameStatus();
     BallMovement();
     MovePaddle();
     PlayerTwoAI();
+    IncreaseDifficulty();
 }
 
 void MovePaddle() {
@@ -169,10 +187,12 @@ void BallMovement() {
         bool hasCollidedP2 = CheckCollisionCircleRec(ball, 10.0F, playerTwo);
         if (hasCollidedP1) {
             xDirection = Right;
+            volleyCounter++;
             RandomizeYSpeed();
         }
         if (hasCollidedP2) {
             xDirection = Left;
+            volleyCounter++;
             RandomizeYSpeed();
         }
 
@@ -201,14 +221,16 @@ void BallMovement() {
         }
 
         if (ball.x <= 10) {
-            volleyCounter += 1;
+            volleyCounter = 0;
+            horizontalSpeed = 15;
             pointsP2 += 1;
             gameIsRunning = false;
             ball = ballDefault;
             RandomizeDirection();
             RandomizeYSpeed();
         } else if (ball.x >= 1280) {
-            volleyCounter += 1;
+            volleyCounter = 0;
+            horizontalSpeed = 15;
             pointsP1 += 1;
             gameIsRunning = false;
             ball = ballDefault;
