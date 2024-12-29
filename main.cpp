@@ -5,10 +5,14 @@
 #include <iostream>
 #include <string>
 #include <random>
+#include <chrono>
+#include <thread>
 
+static void ResetPoints(void);
 static void UpdateFrame(void);
 static void PlayerTwoAI(void);
 static void RandomizeDirection(void);
+static void RandomizeAIDirection(void);
 static void RandomizeYSpeed(void);
 static void MovePaddle(void);
 static void BallMovement(void);
@@ -31,31 +35,35 @@ static float paddleThickness = 20;
 int volleyCounter = 0;
 int difficultyInterval = 300;
 int frameCounter = 0;
+int frameCounterAI = 0;
 int scoreToWin = 10;
 bool startScreen = true;
 bool gameIsRunning = false;
 
-enum BallDirectionX
-{
+enum BallDirectionX {
     Left,
     Right
 };
-enum BallDirectionY
-{
+enum BallDirectionY {
     Up,
     Down
+};
+enum ComputerPlayerDirectionY {
+    UpAI,
+    DownAI
 };
 
 BallDirectionX xDirection;
 BallDirectionY yDirection;
+ComputerPlayerDirectionY yDirectionAI;
 
 const int screenWidth = 1280;
 const int screenHeight = 720;
 
-float playerOneY = 320;
-static float playerOneX = 20;
-float playerTwoY = 320;
-static float playerTwoX = 1240;
+float playerOneY = 320.0F;
+static float playerOneX = 20.0F;
+float playerTwoY = 320.0F;
+static float playerTwoX = 1240.0F;
 Rectangle playerOne = {playerOneX, playerOneY, paddleThickness, paddleLength};
 Rectangle playerTwo = {playerTwoX, playerTwoY, paddleThickness, paddleLength};
 
@@ -86,13 +94,21 @@ void RandomizeDirection(void) {
     yDirection = yDirectionLocal;
 }
 
+void RandomizeAIDirection(void) {
+    ComputerPlayerDirectionY yDirectionAILocal = ComputerPlayerDirectionY(rand() % 2);
+    yDirectionAI = yDirectionAILocal;
+}
+
 void RandomizeYSpeed(void) {
-    verticalOffset += 2;
+    if (verticalOffset == 0) {
+        verticalOffset = 1;
+    } else {
+        verticalOffset += 2;
+    }
     std::srand(std::time(0));
     int randomInt = std::rand() % 50 + verticalOffset;
     float randomFloat = randomInt / 10.0F;
     verticalSpeed = randomFloat;
-
 }
 
 void DrawGame(void) {
@@ -104,6 +120,9 @@ void DrawGame(void) {
             DrawText("PONG", (1280 / 2) - 40, (720 / 2) - 40, 20, LIGHTGRAY);
             DrawText("PRESS ANY BUTTON TO PLAY", (1280 / 2) - 170, (720 / 2) + 40, 20, LIGHTGRAY);
         } else {
+            if (!gameIsRunning) {
+                DrawText("PLAY!", (1280 / 2) - 40, (720 / 2) - 40, 20, LIGHTGRAY);
+            }
             const char* pointsP1Char = std::to_string(pointsP1).c_str();
             const char* pointsP2Char = std::to_string(pointsP2).c_str();
             const char* volleyCounterChar = std::to_string(volleyCounter).c_str();
@@ -123,16 +142,20 @@ void DrawGame(void) {
 void CheckGameStatus(void) {
     if (pointsP1 == scoreToWin) {
         SetDefaults();
+        ResetPoints();
     } else if (pointsP2 == scoreToWin) {
         SetDefaults();
+        ResetPoints();
     }
 }
 
 void IncreaseDifficulty(void) {
-    frameCounter++;
-    if (frameCounter >= difficultyInterval) {
-        horizontalSpeed++;
-        frameCounter = 0;
+    if (gameIsRunning) {
+        frameCounter++;
+        if (frameCounter >= difficultyInterval) {
+            horizontalSpeed++;
+            frameCounter = 0;
+        }
     }
 }
 
@@ -141,14 +164,16 @@ void SetDefaults() {
     horizontalSpeed = 15;
     verticalSpeed = 0.5F;
     verticalOffset = 0;
-
     volleyCounter = 0;
-    startScreen = true;
     gameIsRunning = false;
-
     playerOne.y = 320;
     playerTwo.y = 320;
 
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+}
+
+void ResetPoints() {
+    startScreen = true;
     pointsP1 = 0;
     pointsP2 = 0;
 }
@@ -180,6 +205,72 @@ void MovePaddle() {
         }
     }
 }
+
+void PlayerTwoAI() {
+    if (gameIsRunning) {
+
+        frameCounterAI += 1;
+
+        if (ball.x < GetScreenWidth() / 3) {                        // Only do this when the ball enters the human players half of the playfield
+            if (frameCounterAI <= 30) {                             // Do this for set number of frames
+                if (yDirectionAI == UpAI) {                         // Check current direction
+                    if (playerTwo.y >= 0) {                         // Check if computer hasn't hit Wall
+                        playerTwo.y = playerTwo.y - 5;              // Move computer up
+                    } else {                                        // If computer hits wall, change direction
+                        yDirectionAI = DownAI;
+                        playerTwo.y = playerTwo.y + 5;              // Move computer down once
+                    }
+                } else if (yDirectionAI == DownAI) {                // Check current direction
+                    if (playerTwo.y <= GetScreenHeight() - 80) {    // Check if computer hasn't hit wall
+                        playerTwo.y = playerTwo.y + 5;              // Move computer down
+                    } else {
+                        yDirectionAI = UpAI;                          
+                        playerTwo.y = playerTwo.y - 5;              // Move computer up once
+                    }
+                }
+            } else {
+                frameCounterAI = 0;
+                RandomizeAIDirection();
+            }
+        } else {                                                    // Only do this when the ball enters the computer players half of the playfield
+
+            float paddleY = playerTwo.y + 40;
+            float ballY = ball.y;
+            float difference = paddleY - ballY;
+            float absoluteDif = abs(difference);
+            
+            if (playerTwo.y > ball.y - 40) {
+                if (absoluteDif >= 150) {
+                    playerTwo.y -= 20;
+                } else if (absoluteDif >= 100) {
+                    playerTwo.y -= 15;
+                } else if (absoluteDif >= 50) {
+                    playerTwo.y -= 10;
+                } else if (absoluteDif >= 20) {
+                    playerTwo.y -= 8;
+                } else if (absoluteDif >= 10) {
+                    playerTwo.y -= 3;
+                } else {
+                    playerTwo.y -= 2;
+                }
+            } else if (playerTwo.y < ball.y - 40) {
+                if (absoluteDif >= 150) {
+                    playerTwo.y += 20;
+                } else if (absoluteDif >= 100) {
+                    playerTwo.y += 15;
+                } else if (absoluteDif >= 50) {
+                    playerTwo.y += 10;
+                } else if (absoluteDif >= 20) {
+                    playerTwo.y += 8;
+                } else if (absoluteDif >= 10) {
+                    playerTwo.y += 3;
+                } else {
+                    playerTwo.y += 2;
+                }
+            }
+        }
+    }
+}   
 
 void BallMovement() {
     if (gameIsRunning) {
@@ -221,27 +312,19 @@ void BallMovement() {
         }
 
         if (ball.x <= 10) {
-            volleyCounter = 0;
-            horizontalSpeed = 15;
+            SetDefaults();    
             pointsP2 += 1;
-            gameIsRunning = false;
             ball = ballDefault;
             RandomizeDirection();
             RandomizeYSpeed();
         } else if (ball.x >= 1280) {
-            volleyCounter = 0;
-            horizontalSpeed = 15;
+            SetDefaults();
             pointsP1 += 1;
-            gameIsRunning = false;
             ball = ballDefault;
             RandomizeDirection();
             RandomizeYSpeed();
         }
     }
-}
-
-void PlayerTwoAI() {
-    playerTwo.y = ball.y - 40;
 }
 
 void UpdateFrame(void) {
