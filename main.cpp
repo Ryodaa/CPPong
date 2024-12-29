@@ -241,7 +241,7 @@ void PlayerTwoAI() {
             
             if (playerTwo.y > ball.y - 40) {
                 if (absoluteDif >= 150) {
-                    playerTwo.y -= 20;
+                    playerTwo.y -= 18;
                 } else if (absoluteDif >= 100) {
                     playerTwo.y -= 15;
                 } else if (absoluteDif >= 50) {
@@ -255,7 +255,7 @@ void PlayerTwoAI() {
                 }
             } else if (playerTwo.y < ball.y - 40) {
                 if (absoluteDif >= 150) {
-                    playerTwo.y += 20;
+                    playerTwo.y += 18;
                 } else if (absoluteDif >= 100) {
                     playerTwo.y += 15;
                 } else if (absoluteDif >= 50) {
